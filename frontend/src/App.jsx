@@ -2,10 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import "./App.css";
 
-// ── Config ─────────────────────────────────────────────────────────────────────
-// P3: Use env variable instead of hardcoded URL.
-// Set VITE_API_URL in frontend/.env for each environment.
 const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+const API_KEY = import.meta.env.VITE_API_KEY || "";
+const authHeaders = () => (API_KEY ? { "X-API-Key": API_KEY } : {});
 
 const STORAGE_KEY = "chat_context";
 
@@ -32,7 +32,6 @@ function App() {
 
   const [loading, setLoading] = useState(false);
 
-  // ── P10: Upload state ───────────────────────────────────────────────────────
   const [uploadFile, setUploadFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null); // {type: "success"|"error", message}
@@ -45,7 +44,6 @@ function App() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Save to sessionStorage
   useEffect(() => {
     const limitedMessages = messages.slice(-50);
     sessionStorage.setItem(
@@ -75,8 +73,6 @@ function App() {
       timestamp: getTimestamp(),
     };
 
-    // P2: Build the payload from existing messages + user message ONLY.
-    // The bot placeholder is added to local state for rendering but NOT sent to the API.
     const apiMessages = [...messages, userMessage];
 
     const botMessage = {
@@ -90,10 +86,11 @@ function App() {
     setQuery("");
 
     try {
-      // P3: Use API_BASE instead of hardcoded localhost URL
-      const response = await axios.post(`${API_BASE}/chat`, {
-        messages: apiMessages, // P2: no empty bot placeholder
-      });
+      const response = await axios.post(
+        `${API_BASE}/chat`,
+        { messages: apiMessages },
+        { headers: { ...authHeaders() } },
+      );
 
       const botReply = response.data.reply || "No response from server.";
 
@@ -134,7 +131,6 @@ function App() {
     sessionStorage.removeItem(STORAGE_KEY);
   };
 
-  // ── P10: PDF Upload handler ─────────────────────────────────────────────────
   const handleUpload = async () => {
     if (!uploadFile || uploading) return;
 
@@ -151,15 +147,17 @@ function App() {
 
     try {
       const response = await axios.post(`${API_BASE}/ingest`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          "Content-Type": "multipart/form-data",
+          ...authHeaders(),
+        },
       });
 
       const { chunks_indexed, batches_failed } = response.data;
       setUploadStatus({
         type: "success",
-        message: `✅ Ingested "${uploadFile.name}" — ${chunks_indexed} chunks indexed${
-          batches_failed > 0 ? `, ${batches_failed} batch(es) failed` : ""
-        }.`,
+        message: ` Ingested "${uploadFile.name}" — ${chunks_indexed} chunks indexed${batches_failed > 0 ? `, ${batches_failed} batch(es) failed` : ""
+          }.`,
       });
       setUploadFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -194,7 +192,7 @@ function App() {
         </div>
       </div>
 
-      {/* UPLOAD PANEL (P10) */}
+      {/* UPLOAD PANEL */}
       {showUpload && (
         <div className="upload-panel">
           <h2>Upload a PDF to the Knowledge Base</h2>
