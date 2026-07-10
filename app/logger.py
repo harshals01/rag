@@ -1,11 +1,17 @@
 import logging
 
-def get_logger():
+# Module-level singleton — prevents duplicate handlers when get_logger()
+# is called multiple times across different modules at import time.
+_logger: logging.Logger | None = None
+
+
+def get_logger() -> logging.Logger:
+    global _logger
+    if _logger is not None:
+        return _logger
+
     logger = logging.getLogger("app_logger")
     logger.setLevel(logging.INFO)
-
-    if logger.hasHandlers():
-        logger.handlers.clear()
 
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
@@ -19,4 +25,6 @@ def get_logger():
     logger.addHandler(file_handler)
 
     logger.propagate = False
-    return logger
+
+    _logger = logger
+    return _logger

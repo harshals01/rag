@@ -14,9 +14,7 @@ else:
         _client_kwargs["api_key"] = config.QDRANT_API_KEY
     qdrant_client = QdrantClient(**_client_kwargs)
 
-logger.info(f"QdrantClient instance type: {type(qdrant_client)}")
-logger.info(f"QdrantClient has 'search': {hasattr(qdrant_client, 'search')}")
-logger.info(f"QdrantClient attributes: {[attr for attr in dir(qdrant_client) if not attr.startswith('_')]}")
+logger.info(f"Qdrant client initialized — URL: {config.QDRANT_URL}")
 
 
 def ensure_collection_exists(collection_name: str) -> None:

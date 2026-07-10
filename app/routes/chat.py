@@ -42,15 +42,19 @@ def chat(req: ChatRequest):
 
         top_hits = sorted_hits[:MAX_CONTEXT_DOCS]
 
+        # P4: Use .get() for null-safety; skip docs missing 'combined' payload
         context_blocks = [
-            f"Document {i + 1}:\n{hit['source']['combined'].replace('<br>', chr(10))}"
+            f"Document {i + 1}:\n{hit['source'].get('combined', '').replace('<br>', chr(10))}"
             for i, hit in enumerate(top_hits)
+            if hit.get('source', {}).get('combined')
         ]
         retrieved_context = "\n\n".join(context_blocks)
 
+        # P4 / P2: Exclude any empty stubs (e.g. unfilled bot placeholders)
         chat_history = [
             {"role": m["role"], "content": m["content"]}
             for m in messages[-4:-1]
+            if m.get("content", "").strip()
         ]
         chat_history.append({"role": "user", "content": user_query})
 
