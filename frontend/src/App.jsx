@@ -9,8 +9,7 @@ const authHeaders = () => (API_KEY ? { "X-API-Key": API_KEY } : {});
 
 const STORAGE_KEY = "chat_context";
 
-const generateId = () =>
-  "msg_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+const generateId = () => crypto.randomUUID();
 
 const getTimestamp = () => new Date().toISOString();
 
@@ -90,11 +89,12 @@ function App() {
   }, [messages]);
 
   const streamResponse = async (fullText, callback) => {
+    const CHUNK_SIZE = 4; // characters per frame
     let current = "";
-    for (let i = 0; i < fullText.length; i++) {
-      current += fullText[i];
+    for (let i = 0; i < fullText.length; i += CHUNK_SIZE) {
+      current += fullText.slice(i, i + CHUNK_SIZE);
       callback(current);
-      await new Promise((res) => setTimeout(res, 10));
+      await new Promise((res) => setTimeout(res, 16)); // ~60fps
     }
   };
 
