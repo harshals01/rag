@@ -73,8 +73,12 @@ logs/
 # ── Qdrant local data (if running self-hosted) ────────────────────────────────
 qdrant_storage/
 
-# ── Uploaded files (temporary ingest artifacts) ───────────────────────────────
+# ── Uploaded files & local test data ──────────────────────────────────────────
 uploads/
 tmp/
+*.pdf
+testpdf.pdf
+
 # ── Local Context & Docs ──────────────────────────────────────────────────────
 context.md
+
