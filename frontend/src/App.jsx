@@ -60,15 +60,21 @@ function App() {
   const [showUpload, setShowUpload] = useState(false);
   const fileInputRef = useRef(null);
 
-  // ── Dark Mode ──────────────────────────────────────────────────────────────
+  // ── Theme Toggle (dark is default experience, light is the alternate) ────────
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem(THEME_KEY);
     if (saved) return saved === "dark";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    // Default to dark as the primary experience
+    return true;
   });
 
   useEffect(() => {
-    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    // Dark = no attribute (default CSS), Light = data-theme="light"
+    if (isDark) {
+      delete document.documentElement.dataset.theme;
+    } else {
+      document.documentElement.dataset.theme = "light";
+    }
     localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
   }, [isDark]);
 
@@ -353,7 +359,7 @@ function App() {
         <div className={`input-section ${messages.length === 0 ? "centered" : "bottom"}`}>
           {messages.length === 0 && (
             <div className="hero-container">
-              <h2 className="hero-title">Welcome! What's on your mind today?</h2>
+              <h2 className="hero-title">What&apos;s on your mind?</h2>
             </div>
           )}
           <div className="input-wrapper">
