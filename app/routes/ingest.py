@@ -15,7 +15,15 @@ from app.services.text_processor import chunk_text, extract_text_from_bytes
 router = APIRouter()
 logger = get_logger()
 
-_ALLOWED_CONTENT_TYPES = {"application/pdf"}
+_ALLOWED_CONTENT_TYPES = {
+    "application/pdf",
+    "application/x-pdf",
+    "application/acrobat",
+    "applications/vnd.pdf",
+    "text/pdf",
+    "text/x-pdf",
+    "application/octet-stream",
+}
 _MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB
 
 
@@ -26,8 +34,10 @@ async def ingest_pdf(file: UploadFile = File(...)):
     embed via HF Serverless API, and upsert vectors into Qdrant.
     Returns ingestion statistics on completion.
     """
-    
-    if file.content_type not in _ALLOWED_CONTENT_TYPES:
+    is_valid_type = file.content_type in _ALLOWED_CONTENT_TYPES
+    is_pdf_ext = file.filename and file.filename.lower().endswith(".pdf")
+
+    if not (is_valid_type or is_pdf_ext):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
     raw_bytes = await file.read()
@@ -37,33 +47,28 @@ async def ingest_pdf(file: UploadFile = File(...)):
 
     logger.info(f"[INGEST] Processing: {file.filename} ({len(raw_bytes):,} bytes)")
 
-    
     text = extract_text_from_bytes(raw_bytes)
     if not text.strip():
         raise HTTPException(
             status_code=422,
-            detail="No extractable text found. Scanned/image-only PDFs are not supported.",
+            detail="No extractable text found. Scanned or image-only PDFs are not supported without OCR.",
         )
 
-   
     chunks = chunk_text(text)
     logger.info(f"[INGEST] {len(chunks)} chunks generated from '{file.filename}'.")
 
-    
     loop = asyncio.get_running_loop()
     try:
         await loop.run_in_executor(None, partial(ensure_collection_exists, INDEX_NAME))
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Vector store unavailable: {e}")
 
-    
     points: list[PointStruct] = []
     failed_batches: list[dict] = []
 
     for batch_start in range(0, len(chunks), INGEST_BATCH_SIZE):
         batch = chunks[batch_start : batch_start + INGEST_BATCH_SIZE]
         try:
-            
             vectors: list[list[float]] = await loop.run_in_executor(
                 None, partial(get_embeddings_batch, batch)
             )
@@ -74,7 +79,6 @@ async def ingest_pdf(file: UploadFile = File(...)):
 
         for i, (chunk, vector) in enumerate(zip(batch, vectors)):
             chunk_index = batch_start + i
-           
             point_id = str(
                 uuid.uuid5(
                     uuid.NAMESPACE_DNS,
@@ -89,7 +93,14 @@ async def ingest_pdf(file: UploadFile = File(...)):
                 )
             )
 
-    
+    if not points and failed_batches:
+        first_err = failed_batches[0]["error"]
+        logger.error(f"[INGEST] Ingestion failed completely for '{file.filename}': {first_err}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Embedding API call failed during PDF processing: {first_err}",
+        )
+
     if points:
         try:
             await loop.run_in_executor(

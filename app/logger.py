@@ -1,7 +1,5 @@
 import logging
 
-# Module-level singleton — prevents duplicate handlers when get_logger()
-# is called multiple times across different modules at import time.
 _logger: logging.Logger | None = None
 
 
@@ -18,7 +16,7 @@ def get_logger() -> logging.Logger:
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
-    file_handler = logging.FileHandler("logs/app.log")
+    file_handler = logging.FileHandler("logs/app.log", encoding="utf-8")
     file_handler.setFormatter(formatter)
 
     logger.addHandler(console_handler)
